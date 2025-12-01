@@ -1,14 +1,12 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Transaction, SummaryData, CategoryData, ChartDataPoint, DateFilterType, User } from './types';
+import { Transaction, SummaryData, CategoryData, ChartDataPoint, DateFilterType } from './types';
 import { INITIAL_TRANSACTIONS, COLORS } from './constants';
 import { SummaryCards } from './components/SummaryCards';
 import { Charts } from './components/Charts';
 import { TransactionForm } from './components/TransactionForm';
 import { TransactionList } from './components/TransactionList';
 import { GeminiAdvisor } from './components/GeminiAdvisor';
-import { SharingModal } from './components/SharingModal';
-import { Login } from './components/Login';
-import { Wallet, Calendar, Filter, User as UserIcon, Users, Share2, Info, RefreshCw, LogOut } from 'lucide-react';
+import { Wallet, Filter, RefreshCw, Trash2 } from 'lucide-react';
 
 // Helper seguro para parsing JSON
 const safeJSONParse = (key: string, fallback: any) => {
@@ -22,85 +20,25 @@ const safeJSONParse = (key: string, fallback: any) => {
 };
 
 const App: React.FC = () => {
-  // Auth State - Inicia nulo para exigir login
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
-  // Data Ownership State
-  const [dataOwnerEmail, setDataOwnerEmail] = useState<string | null>(null);
-
-  // App Data State
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  
-  // UI State
-  const [isSharingModalOpen, setIsSharingModalOpen] = useState(false);
+  // App Data State - Carrega direto do localStorage ou usa inicial
+  const [transactions, setTransactions] = useState<Transaction[]>(() => 
+    safeJSONParse('finansmart_transactions', INITIAL_TRANSACTIONS)
+  );
   
   // States for Filtering
   const [filterType, setFilterType] = useState<DateFilterType>('current_month');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
-  // -- Auth Logic --
-
-  const handleLogin = (user: User) => {
-    // 1. Determinar de quem são os dados (permissões de compartilhamento)
-    const permissions = safeJSONParse('finansmart_permissions', {});
-    const ownerEmail = permissions[user.email] || user.email;
-
-    // 2. Carregar dados do localStorage ANTES de setar o usuário
-    const storedData = safeJSONParse(`finansmart_data_${ownerEmail}`, null);
-    
-    // Se não tiver dados salvos, usa os iniciais. Se tiver, usa os salvos.
-    setTransactions(storedData || INITIAL_TRANSACTIONS);
-    
-    // 3. Atualizar estados
-    setDataOwnerEmail(ownerEmail);
-    setCurrentUser(user);
-  };
-
-  const handleLogout = useCallback(() => {
-    setCurrentUser(null);
-    setDataOwnerEmail(null);
-    setTransactions([]); // Limpa dados da memória visual
-  }, []);
-
-  // -- Inactivity Timer Logic --
-  useEffect(() => {
-    if (!currentUser) return;
-
-    let timeoutId: ReturnType<typeof setTimeout>;
-
-    const resetTimer = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        handleLogout();
-        alert('Sessão expirada por segurança após 10 minutos de inatividade.');
-      }, 10 * 60 * 1000); // 10 minutos
-    };
-
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
-    events.forEach(event => document.addEventListener(event, resetTimer));
-    
-    resetTimer(); // Inicia o timer
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      events.forEach(event => document.removeEventListener(event, resetTimer));
-    };
-  }, [currentUser, handleLogout]);
-
   // -- Persistence Logic --
-
-  // Quando as transações mudarem, salvar no localStorage (apenas se estiver logado)
   useEffect(() => {
-    if (dataOwnerEmail && currentUser) {
-      localStorage.setItem(`finansmart_data_${dataOwnerEmail}`, JSON.stringify(transactions));
-    }
-  }, [transactions, dataOwnerEmail, currentUser]);
+    localStorage.setItem('finansmart_transactions', JSON.stringify(transactions));
+  }, [transactions]);
 
   const handleAddTransaction = (newTransactionData: Omit<Transaction, 'id'>) => {
     const newTransaction: Transaction = {
       ...newTransactionData,
-      id: Math.random().toString(36).substr(2, 9), // Simple ID generator compatible with older browsers
+      id: Math.random().toString(36).substr(2, 9),
     };
     setTransactions(prev => [newTransaction, ...prev]);
   };
@@ -110,20 +48,18 @@ const App: React.FC = () => {
   };
 
   const handleResetData = useCallback(() => {
-    if (window.confirm('Deseja resetar para os dados iniciais de exemplo? Todos os lançamentos atuais serão apagados.')) {
+    if (window.confirm('Deseja resetar para os dados iniciais de exemplo? Todos os seus lançamentos atuais serão apagados.')) {
       setTransactions(INITIAL_TRANSACTIONS);
     }
   }, []);
 
   // -- Filter Logic --
   const filteredTransactions = useMemo<Transaction[]>(() => {
-    if (!currentUser) return [];
-
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     return transactions.filter(t => {
-      const tDate = new Date(t.date + 'T00:00:00'); // Force local time handling for date string
+      const tDate = new Date(t.date + 'T00:00:00'); // Force local time handling
       
       switch (filterType) {
         case 'current_month':
@@ -143,9 +79,9 @@ const App: React.FC = () => {
           return true;
       }
     });
-  }, [transactions, filterType, customStartDate, customEndDate, currentUser]);
+  }, [transactions, filterType, customStartDate, customEndDate]);
 
-  // -- Data Processing for Dashboard (Uses Filtered Data) --
+  // -- Data Processing for Dashboard --
 
   const summary: SummaryData = useMemo(() => {
     const totalIncome = filteredTransactions
@@ -179,9 +115,8 @@ const App: React.FC = () => {
   }, [filteredTransactions]);
 
   const chartData: ChartDataPoint[] = useMemo(() => {
-    // Group by date
     const grouped = filteredTransactions.reduce((acc: Record<string, ChartDataPoint>, curr: Transaction) => {
-      const date = curr.date; // already YYYY-MM-DD
+      const date = curr.date;
       if (!acc[date]) {
         acc[date] = { date, income: 0, expense: 0 };
       }
@@ -193,22 +128,13 @@ const App: React.FC = () => {
       return acc;
     }, {} as Record<string, ChartDataPoint>);
 
-    // Convert to array and sort by date
     return (Object.values(grouped) as ChartDataPoint[])
       .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-10); // Show last 10 days with activity in the selected period
+      .slice(-15);
   }, [filteredTransactions]);
 
-  // -- Render Logic --
-
-  // 1. SE NÃO ESTIVER LOGADO, MOSTRA LOGIN
-  if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
-  }
-
-  // 2. SE LOGADO, MOSTRA DASHBOARD
   return (
-    <div className="min-h-screen bg-slate-50 pb-12">
+    <div className="min-h-screen bg-slate-50 pb-12 font-sans">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -220,41 +146,6 @@ const App: React.FC = () => {
               <div>
                 <h1 className="text-xl font-bold text-slate-800 tracking-tight">FinanSmart</h1>
                 <p className="text-xs text-[#0070F0] font-medium bg-blue-50 px-2 py-0.5 rounded-full inline-block">Personal Finance</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              {/* Family Mode Indicator */}
-              {dataOwnerEmail !== currentUser.email && (
-                 <div className="hidden md:flex items-center gap-2 bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full text-xs font-semibold border border-purple-100">
-                    <Users size={14} />
-                    Conta de: {dataOwnerEmail}
-                 </div>
-              )}
-
-              <button 
-                onClick={() => setIsSharingModalOpen(true)}
-                className="p-2 text-slate-500 hover:text-[#0070F0] hover:bg-blue-50 rounded-lg transition-colors"
-                title="Compartilhar Conta"
-              >
-                <Share2 size={20} />
-                <span className="sr-only">Compartilhar</span>
-              </button>
-
-              <div className="h-6 w-px bg-slate-200 mx-1"></div>
-
-              <div className="flex items-center gap-3 bg-slate-50 pl-3 pr-1 py-1 rounded-full border border-slate-100">
-                 <div className="flex flex-col items-end mr-1">
-                   <span className="text-xs font-bold text-slate-700 leading-tight">{currentUser.name}</span>
-                   <span className="text-[10px] text-slate-400 leading-tight">{currentUser.email}</span>
-                 </div>
-                 <button 
-                   onClick={handleLogout}
-                   className="p-1.5 bg-white text-rose-500 hover:bg-rose-50 rounded-full shadow-sm border border-slate-100 transition-colors"
-                   title="Sair"
-                 >
-                   <LogOut size={14} />
-                 </button>
               </div>
             </div>
           </div>
@@ -326,7 +217,7 @@ const App: React.FC = () => {
         {/* Charts */}
         <Charts timeData={chartData} categoryData={categoryData} />
 
-        {/* Transaction Area - Full Width Vertical Stack */}
+        {/* Transaction Area */}
         <div className="flex flex-col gap-6">
           <TransactionForm onAddTransaction={handleAddTransaction} />
           <TransactionList transactions={filteredTransactions} onDeleteTransaction={handleDeleteTransaction} />
@@ -336,19 +227,11 @@ const App: React.FC = () => {
         <div className="mt-12 text-center text-slate-400 text-sm flex items-center justify-center gap-4">
            <p>© 2025 FinanSmart AI</p>
            <button onClick={handleResetData} className="flex items-center gap-1 hover:text-rose-500 transition-colors">
-              <RefreshCw size={12} /> Resetar Dados
+              <Trash2 size={12} /> Limpar Todos os Dados
            </button>
         </div>
 
       </main>
-
-      {/* Modals */}
-      {isSharingModalOpen && (
-        <SharingModal 
-          currentUser={currentUser} 
-          onClose={() => setIsSharingModalOpen(false)} 
-        />
-      )}
     </div>
   );
 };

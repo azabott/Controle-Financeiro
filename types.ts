@@ -32,5 +32,5 @@ export type DateFilterType = 'current_month' | 'last_30_days' | 'current_year' |
 export interface User {
   name: string;
   email: string;
-  password?: string; // Opcional apenas na tipagem de retorno para segurança, mas obrigatório no form
+  password?: string;
 }

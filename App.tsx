@@ -6,9 +6,8 @@ import { Charts } from './components/Charts';
 import { TransactionForm } from './components/TransactionForm';
 import { TransactionList } from './components/TransactionList';
 import { GeminiAdvisor } from './components/GeminiAdvisor';
-import { Login } from './components/Login';
 import { SharingModal } from './components/SharingModal';
-import { Wallet, Calendar, Filter, LogOut, User as UserIcon, Users, Share2, Info } from 'lucide-react';
+import { Wallet, Calendar, Filter, User as UserIcon, Users, Share2, Info, RefreshCw } from 'lucide-react';
 
 // Helper seguro para parsing JSON
 const safeJSONParse = (key: string, fallback: any) => {
@@ -21,15 +20,23 @@ const safeJSONParse = (key: string, fallback: any) => {
   }
 };
 
-const App: React.FC = () => {
-  // Auth State
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
-  // Data Ownership State (Para suportar compartilhamento)
-  const [dataOwnerEmail, setDataOwnerEmail] = useState<string | null>(null);
+const DEFAULT_USER: User = {
+  name: 'Visitante',
+  email: 'visitante@finansmart.local'
+};
 
-  // App Data State
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+const App: React.FC = () => {
+  // Auth State - Inicializado diretamente com usuário padrão (Sem Login)
+  const [currentUser, setCurrentUser] = useState<User | null>(DEFAULT_USER);
+  
+  // Data Ownership State
+  const [dataOwnerEmail, setDataOwnerEmail] = useState<string | null>(DEFAULT_USER.email);
+
+  // App Data State - Carregamento inicial direto
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    const storedData = safeJSONParse(`finansmart_data_${DEFAULT_USER.email}`, null);
+    return storedData || INITIAL_TRANSACTIONS;
+  });
   
   // UI State
   const [isSharingModalOpen, setIsSharingModalOpen] = useState(false);
@@ -41,80 +48,18 @@ const App: React.FC = () => {
 
   // -- Persistence Logic --
 
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
-    
-    // Lógica de Compartilhamento Segura
-    const permissions = safeJSONParse('finansmart_permissions', {});
-    const ownerEmail = permissions[user.email] || user.email; 
-    
-    setDataOwnerEmail(ownerEmail);
-
-    const storedData = safeJSONParse(`finansmart_data_${ownerEmail}`, null);
-    
-    if (storedData) {
-      setTransactions(storedData);
-    } else {
-      if (ownerEmail === user.email) {
-        setTransactions(INITIAL_TRANSACTIONS);
-        localStorage.setItem(`finansmart_data_${ownerEmail}`, JSON.stringify(INITIAL_TRANSACTIONS));
-      } else {
-        setTransactions([]);
-      }
-    }
-  };
-
-  // Quando as transações mudarem, salvar no localStorage do DONO DOS DADOS
+  // Quando as transações mudarem, salvar no localStorage
   useEffect(() => {
     if (dataOwnerEmail && currentUser) {
       localStorage.setItem(`finansmart_data_${dataOwnerEmail}`, JSON.stringify(transactions));
     }
   }, [transactions, dataOwnerEmail, currentUser]);
 
-  const handleLogout = useCallback(() => {
-    setCurrentUser(null);
-    setDataOwnerEmail(null);
-    setTransactions([]);
-    setIsSharingModalOpen(false);
+  const handleResetData = useCallback(() => {
+    if (window.confirm('Deseja resetar para os dados iniciais de exemplo? Todos os lançamentos atuais serão apagados.')) {
+      setTransactions(INITIAL_TRANSACTIONS);
+    }
   }, []);
-
-  // -- Security: Auto Logout on Inactivity --
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 minutes in milliseconds
-    let timeoutId: ReturnType<typeof setTimeout>;
-
-    const doLogout = () => {
-      handleLogout();
-      alert("Por segurança, sua sessão foi encerrada após 10 minutos de inatividade.");
-    };
-
-    const resetTimer = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(doLogout, INACTIVITY_LIMIT);
-    };
-
-    // Events to track activity
-    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
-    
-    // Add listeners
-    events.forEach(event => {
-      document.addEventListener(event, resetTimer);
-    });
-
-    // Initial start
-    resetTimer();
-
-    // Cleanup
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      events.forEach(event => {
-        document.removeEventListener(event, resetTimer);
-      });
-    };
-  }, [currentUser, handleLogout]);
-
 
   // -- Filter Logic --
   const filteredTransactions = useMemo(() => {
@@ -221,7 +166,7 @@ const App: React.FC = () => {
   // -- Render --
 
   if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
+    return null; // Should not happen with DEFAULT_USER
   }
 
   // Verificar se estou visualizando dados de outra pessoa
@@ -267,11 +212,11 @@ const App: React.FC = () => {
              </button>
 
              <button 
-               onClick={handleLogout}
+               onClick={handleResetData}
                className="flex items-center gap-2 text-slate-500 hover:text-rose-600 transition-colors text-sm font-medium bg-slate-50 hover:bg-rose-50 px-3 py-2 rounded-lg"
-               title="Sair"
+               title="Resetar Dados de Exemplo"
              >
-               <LogOut size={18} />
+               <RefreshCw size={18} />
              </button>
           </div>
         </div>

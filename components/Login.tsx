@@ -21,18 +21,17 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setSuccessMessage('');
     setIsLoading(true);
 
-    // Simulação de delay de rede
     setTimeout(() => {
       const storedUsers = JSON.parse(localStorage.getItem('finansmart_users') || '[]');
 
       if (isRegistering) {
-        // Lógica de Cadastro
         if (!name || !email || password.length < 6) {
           setError('Preencha todos os campos. A senha deve ter no mínimo 6 caracteres.');
           setIsLoading(false);
           return;
         }
 
+        // Add explicit type for u to avoid ImplicitAny error
         const userExists = storedUsers.find((u: User) => u.email === email);
         if (userExists) {
           setError('Este e-mail já está cadastrado.');
@@ -45,11 +44,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         
         setIsRegistering(false);
         setSuccessMessage('Conta criada com sucesso! Faça login para continuar.');
-        setPassword(''); // Limpar senha para forçar digitação no login
+        setPassword('');
         setIsLoading(false);
 
       } else {
-        // Lógica de Login
+        // Add explicit type for u to avoid ImplicitAny error
         const user = storedUsers.find((u: User) => u.email === email && u.password === password);
 
         if (user) {
@@ -71,16 +70,16 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Decorativo */}
+      {/* Background Decorativo com nova paleta */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-        <div className="absolute -top-[30%] -left-[10%] w-[70%] h-[70%] rounded-full bg-indigo-600/20 blur-3xl"></div>
-        <div className="absolute top-[20%] -right-[10%] w-[60%] h-[60%] rounded-full bg-purple-600/20 blur-3xl"></div>
-        <div className="absolute -bottom-[20%] left-[20%] w-[50%] h-[50%] rounded-full bg-emerald-500/20 blur-3xl"></div>
+        <div className="absolute -top-[30%] -left-[10%] w-[70%] h-[70%] rounded-full bg-[#00F0FF]/20 blur-3xl"></div>
+        <div className="absolute top-[20%] -right-[10%] w-[60%] h-[60%] rounded-full bg-[#0070F0]/20 blur-3xl"></div>
+        <div className="absolute -bottom-[20%] left-[20%] w-[50%] h-[50%] rounded-full bg-[#0040A0]/20 blur-3xl"></div>
       </div>
 
       <div className="bg-white/80 backdrop-blur-xl border border-white/50 w-full max-w-md p-8 rounded-3xl shadow-2xl relative z-10 animate-fade-in-up">
         <div className="flex flex-col items-center mb-8">
-          <div className="bg-gradient-to-tr from-indigo-600 to-purple-600 p-4 rounded-2xl shadow-lg shadow-indigo-200 mb-4">
+          <div className="bg-gradient-to-tr from-[#0070F0] to-[#0040A0] p-4 rounded-2xl shadow-lg shadow-blue-200 mb-4">
             <Wallet size={40} className="text-white" />
           </div>
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight">FinanSmart</h1>
@@ -95,13 +94,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <label className="text-sm font-semibold text-slate-600 ml-1">Nome Completo</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <UserIcon size={18} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  <UserIcon size={18} className="text-slate-400 group-focus-within:text-[#0070F0] transition-colors" />
                 </div>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0070F0]/50 focus:border-[#0070F0] transition-all"
                   placeholder="Seu nome"
                   required={isRegistering}
                 />
@@ -113,13 +112,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <label className="text-sm font-semibold text-slate-600 ml-1">E-mail</label>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail size={18} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                <Mail size={18} className="text-slate-400 group-focus-within:text-[#0070F0] transition-colors" />
               </div>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0070F0]/50 focus:border-[#0070F0] transition-all"
                 placeholder="seu@email.com"
                 required
               />
@@ -130,13 +129,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <label className="text-sm font-semibold text-slate-600 ml-1">Senha</label>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock size={18} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                <Lock size={18} className="text-slate-400 group-focus-within:text-[#0070F0] transition-colors" />
               </div>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0070F0]/50 focus:border-[#0070F0] transition-all"
                 placeholder="Mínimo 6 caracteres"
                 required
               />
@@ -158,7 +157,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full bg-[#0070F0] hover:bg-[#0040A0] text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
@@ -182,7 +181,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             {isRegistering ? 'Já tem uma conta?' : 'Não tem uma conta?'}
             <button 
               onClick={toggleMode}
-              className="ml-1 text-indigo-600 font-semibold hover:text-indigo-800 transition-colors focus:outline-none"
+              className="ml-1 text-[#0070F0] font-semibold hover:text-[#0040A0] transition-colors focus:outline-none"
             >
               {isRegistering ? 'Fazer Login' : 'Cadastre-se grátis'}
             </button>

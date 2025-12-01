@@ -35,7 +35,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransacti
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8">
       <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-        <PlusCircle className="text-indigo-600" size={20} />
+        <PlusCircle className="text-[#0070F0]" size={20} />
         Adicionar Nova Transação
       </h3>
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
@@ -66,7 +66,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransacti
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Ex: Supermercado"
-            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm"
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0070F0]/50 focus:border-[#0070F0] text-sm"
             required
           />
         </div>
@@ -80,7 +80,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransacti
             placeholder="0.00"
             min="0.01"
             step="0.01"
-            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm"
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0070F0]/50 focus:border-[#0070F0] text-sm"
             required
           />
         </div>
@@ -90,7 +90,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransacti
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm"
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0070F0]/50 focus:border-[#0070F0] text-sm"
           >
             {CATEGORIES.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
@@ -104,14 +104,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransacti
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm"
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0070F0]/50 focus:border-[#0070F0] text-sm"
             required
           />
         </div>
 
         <button
           type="submit"
-          className="lg:col-span-5 mt-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md shadow-indigo-200"
+          className="lg:col-span-5 mt-2 w-full bg-[#0070F0] hover:bg-[#0040A0] text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md shadow-blue-200"
         >
           <PlusCircle size={20} />
           Registrar Lançamento

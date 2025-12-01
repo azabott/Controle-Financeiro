@@ -16,7 +16,8 @@ export const CATEGORIES = [
   'Outros'
 ];
 
-export const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#0ea5e9', '#84cc16'];
+// Paleta Azul/Ciano solicitada
+export const COLORS = ['#0070F0', '#00B0FF', '#00F0FF', '#0040A0', '#0060C0', '#40C0FF', '#0080E0', '#003080', '#50D0FF', '#0050B0'];
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [
   { id: '1', description: 'Salário Mensal', amount: 5000, type: 'income', category: 'Salário', date: new Date().toISOString().split('T')[0] },

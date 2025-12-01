@@ -15,8 +15,6 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   // Data Ownership State (Para suportar compartilhamento)
-  // Se eu sou convidado, dataOwnerEmail será o email de quem me convidou.
-  // Se eu sou o dono, será meu próprio email.
   const [dataOwnerEmail, setDataOwnerEmail] = useState<string | null>(null);
 
   // App Data State
@@ -36,9 +34,8 @@ const App: React.FC = () => {
     setCurrentUser(user);
     
     // Lógica de Compartilhamento
-    // 1. Verificar se meu email está na lista de permissões apontando para outro dono
     const permissions = JSON.parse(localStorage.getItem('finansmart_permissions') || '{}');
-    const ownerEmail = permissions[user.email] || user.email; // Se tiver permissão, usa o email do dono, senão o meu
+    const ownerEmail = permissions[user.email] || user.email; 
     
     setDataOwnerEmail(ownerEmail);
 
@@ -47,8 +44,6 @@ const App: React.FC = () => {
     if (storedData) {
       setTransactions(JSON.parse(storedData));
     } else {
-      // Se for novo usuário sem dados E é o próprio dono, carrega iniciais
-      // Se for convidado e não tem dados, começa vazio
       if (ownerEmail === user.email) {
         setTransactions(INITIAL_TRANSACTIONS);
         localStorage.setItem(`finansmart_data_${ownerEmail}`, JSON.stringify(INITIAL_TRANSACTIONS));
@@ -200,9 +195,10 @@ const App: React.FC = () => {
   // -- Handlers --
 
   const addTransaction = (newTx: Omit<Transaction, 'id'>) => {
+    // Basic ID generation that works in all environments
     const transaction: Transaction = {
       ...newTx,
-      id: crypto.randomUUID(),
+      id: Date.now().toString(36) + Math.random().toString(36).substr(2),
     };
     setTransactions(prev => [transaction, ...prev]);
   };
@@ -222,17 +218,17 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 pb-20 font-sans relative">
-      {/* Header */}
+      {/* Header com a nova cor Azul Elétrico */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-indigo-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-200">
+            <div className="bg-[#0070F0] p-2.5 rounded-xl text-white shadow-lg shadow-blue-200">
               <Wallet size={26} />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-800 tracking-tight leading-none">FinanSmart</h1>
               <div className="flex items-center gap-1">
-                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">Personal Finance</span>
+                <span className="text-xs font-semibold text-[#0070F0] bg-blue-50 px-2 py-0.5 rounded-full">Personal Finance</span>
                 {isSharedView && (
                    <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-100">
                      <Users size={10} /> Conta Família ({dataOwnerEmail})
@@ -244,7 +240,7 @@ const App: React.FC = () => {
           
           <div className="flex items-center gap-4">
              <div className="hidden md:flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-               <UserIcon size={16} className="text-indigo-500" />
+               <UserIcon size={16} className="text-[#0070F0]" />
                <span className="truncate max-w-[100px]">{currentUser.name}</span>
              </div>
              
@@ -252,7 +248,7 @@ const App: React.FC = () => {
              
              <button
                 onClick={() => setIsSharingModalOpen(true)}
-                className="hidden md:flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors text-sm font-medium bg-slate-50 hover:bg-indigo-50 px-3 py-2 rounded-lg border border-transparent hover:border-indigo-100"
+                className="hidden md:flex items-center gap-2 text-slate-500 hover:text-[#0070F0] transition-colors text-sm font-medium bg-slate-50 hover:bg-blue-50 px-3 py-2 rounded-lg border border-transparent hover:border-blue-100"
                 title="Compartilhar Conta"
              >
                 <Share2 size={18} />
@@ -289,7 +285,7 @@ const App: React.FC = () => {
         <div className="md:hidden flex justify-end mb-4">
              <button
                 onClick={() => setIsSharingModalOpen(true)}
-                className="flex items-center gap-2 text-indigo-600 bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-100 font-medium text-sm w-full justify-center"
+                className="flex items-center gap-2 text-[#0070F0] bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-100 font-medium text-sm w-full justify-center"
              >
                 <Share2 size={18} />
                 Gerenciar Família
@@ -299,7 +295,7 @@ const App: React.FC = () => {
         {/* Filter Bar */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-slate-700 font-semibold">
-            <Filter size={20} className="text-indigo-600" />
+            <Filter size={20} className="text-[#0070F0]" />
             <span>Filtrar Período:</span>
           </div>
           
@@ -315,7 +311,7 @@ const App: React.FC = () => {
                 onClick={() => setFilterType(filter.id as DateFilterType)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   filterType === filter.id 
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
+                    ? 'bg-[#0070F0] text-white shadow-md shadow-blue-200' 
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >

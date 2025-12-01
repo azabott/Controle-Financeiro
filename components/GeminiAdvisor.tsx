@@ -24,7 +24,7 @@ export const GeminiAdvisor: React.FC<GeminiAdvisorProps> = ({ transactions }) =>
   };
 
   return (
-    <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg mb-8 relative overflow-hidden">
+    <div className="bg-gradient-to-br from-[#0040A0] to-[#0060C0] rounded-2xl p-6 text-white shadow-lg mb-8 relative overflow-hidden">
       {/* Decorative background elements */}
       <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-white opacity-5"></div>
       <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-32 h-32 rounded-full bg-white opacity-10"></div>
@@ -32,7 +32,7 @@ export const GeminiAdvisor: React.FC<GeminiAdvisorProps> = ({ transactions }) =>
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold flex items-center gap-2">
-            <Sparkles className="text-yellow-300" />
+            <Sparkles className="text-[#00F0FF]" />
             Assistente Financeiro IA
           </h3>
           <button
@@ -50,7 +50,7 @@ export const GeminiAdvisor: React.FC<GeminiAdvisorProps> = ({ transactions }) =>
             <p className="whitespace-pre-line">{advice}</p>
           </div>
         ) : (
-          <p className="text-indigo-100 text-sm opacity-90">
+          <p className="text-blue-100 text-sm opacity-90">
             Clique em "Gerar Insights" para receber uma análise inteligente dos seus gastos e dicas personalizadas para economizar, powered by Gemini.
           </p>
         )}

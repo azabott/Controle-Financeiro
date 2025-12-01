@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Transaction, SummaryData, CategoryData, ChartDataPoint, DateFilterType, User } from './types';
 import { INITIAL_TRANSACTIONS, COLORS } from './constants';
 import { SummaryCards } from './components/SummaryCards';
@@ -65,12 +65,50 @@ const App: React.FC = () => {
     }
   }, [transactions, dataOwnerEmail, currentUser]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setCurrentUser(null);
     setDataOwnerEmail(null);
     setTransactions([]);
     setIsSharingModalOpen(false);
-  };
+  }, []);
+
+  // -- Security: Auto Logout on Inactivity --
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 minutes in milliseconds
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const doLogout = () => {
+      handleLogout();
+      alert("Por segurança, sua sessão foi encerrada após 10 minutos de inatividade.");
+    };
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(doLogout, INACTIVITY_LIMIT);
+    };
+
+    // Events to track activity
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    
+    // Add listeners
+    events.forEach(event => {
+      document.addEventListener(event, resetTimer);
+    });
+
+    // Initial start
+    resetTimer();
+
+    // Cleanup
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(event => {
+        document.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [currentUser, handleLogout]);
+
 
   // -- Filter Logic --
   const filteredTransactions = useMemo(() => {

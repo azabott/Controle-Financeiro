@@ -7,7 +7,8 @@ import { TransactionForm } from './components/TransactionForm';
 import { TransactionList } from './components/TransactionList';
 import { GeminiAdvisor } from './components/GeminiAdvisor';
 import { SharingModal } from './components/SharingModal';
-import { Wallet, Calendar, Filter, User as UserIcon, Users, Share2, Info, RefreshCw } from 'lucide-react';
+import { Login } from './components/Login';
+import { Wallet, Calendar, Filter, User as UserIcon, Users, Share2, Info, RefreshCw, LogOut } from 'lucide-react';
 
 // Helper seguro para parsing JSON
 const safeJSONParse = (key: string, fallback: any) => {
@@ -20,23 +21,15 @@ const safeJSONParse = (key: string, fallback: any) => {
   }
 };
 
-const DEFAULT_USER: User = {
-  name: 'Visitante',
-  email: 'visitante@finansmart.local'
-};
-
 const App: React.FC = () => {
-  // Auth State - Inicializado diretamente com usuário padrão (Sem Login)
-  const [currentUser, setCurrentUser] = useState<User | null>(DEFAULT_USER);
+  // Auth State - Inicia nulo para exigir login
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   // Data Ownership State
-  const [dataOwnerEmail, setDataOwnerEmail] = useState<string | null>(DEFAULT_USER.email);
+  const [dataOwnerEmail, setDataOwnerEmail] = useState<string | null>(null);
 
-  // App Data State - Carregamento inicial direto
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const storedData = safeJSONParse(`finansmart_data_${DEFAULT_USER.email}`, null);
-    return storedData || INITIAL_TRANSACTIONS;
-  });
+  // App Data State
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   
   // UI State
   const [isSharingModalOpen, setIsSharingModalOpen] = useState(false);
@@ -46,14 +39,75 @@ const App: React.FC = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
+  // -- Auth Logic --
+
+  const handleLogin = (user: User) => {
+    // 1. Determinar de quem são os dados (permissões de compartilhamento)
+    const permissions = safeJSONParse('finansmart_permissions', {});
+    const ownerEmail = permissions[user.email] || user.email;
+
+    // 2. Carregar dados do localStorage ANTES de setar o usuário
+    const storedData = safeJSONParse(`finansmart_data_${ownerEmail}`, null);
+    
+    // Se não tiver dados salvos, usa os iniciais. Se tiver, usa os salvos.
+    setTransactions(storedData || INITIAL_TRANSACTIONS);
+    
+    // 3. Atualizar estados
+    setDataOwnerEmail(ownerEmail);
+    setCurrentUser(user);
+  };
+
+  const handleLogout = useCallback(() => {
+    setCurrentUser(null);
+    setDataOwnerEmail(null);
+    setTransactions([]); // Limpa dados da memória visual
+  }, []);
+
+  // -- Inactivity Timer Logic --
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        handleLogout();
+        alert('Sessão expirada por segurança após 10 minutos de inatividade.');
+      }, 10 * 60 * 1000); // 10 minutos
+    };
+
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => document.addEventListener(event, resetTimer));
+    
+    resetTimer(); // Inicia o timer
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(event => document.removeEventListener(event, resetTimer));
+    };
+  }, [currentUser, handleLogout]);
+
   // -- Persistence Logic --
 
-  // Quando as transações mudarem, salvar no localStorage
+  // Quando as transações mudarem, salvar no localStorage (apenas se estiver logado)
   useEffect(() => {
     if (dataOwnerEmail && currentUser) {
       localStorage.setItem(`finansmart_data_${dataOwnerEmail}`, JSON.stringify(transactions));
     }
   }, [transactions, dataOwnerEmail, currentUser]);
+
+  const handleAddTransaction = (newTransactionData: Omit<Transaction, 'id'>) => {
+    const newTransaction: Transaction = {
+      ...newTransactionData,
+      id: Math.random().toString(36).substr(2, 9), // Simple ID generator compatible with older browsers
+    };
+    setTransactions(prev => [newTransaction, ...prev]);
+  };
+
+  const handleDeleteTransaction = (id: string) => {
+    setTransactions(prev => prev.filter(t => t.id !== id));
+  };
 
   const handleResetData = useCallback(() => {
     if (window.confirm('Deseja resetar para os dados iniciais de exemplo? Todos os lançamentos atuais serão apagados.')) {
@@ -62,7 +116,7 @@ const App: React.FC = () => {
   }, []);
 
   // -- Filter Logic --
-  const filteredTransactions = useMemo(() => {
+  const filteredTransactions = useMemo<Transaction[]>(() => {
     if (!currentUser) return [];
 
     const now = new Date();
@@ -96,10 +150,10 @@ const App: React.FC = () => {
   const summary: SummaryData = useMemo(() => {
     const totalIncome = filteredTransactions
       .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
     const totalExpense = filteredTransactions
       .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
     
     return {
       totalIncome,
@@ -121,211 +175,175 @@ const App: React.FC = () => {
         value,
         color: COLORS[index % COLORS.length]
       }))
-      .sort((a, b) => Number(b.value) - Number(a.value)); // Sort highest expenses first
+      .sort((a, b) => b.value - a.value);
   }, [filteredTransactions]);
 
-  const timeData: ChartDataPoint[] = useMemo(() => {
-    // Sort transactions by date first
-    const sorted = [...filteredTransactions].sort((a, b) => a.date.localeCompare(b.date));
-    
+  const chartData: ChartDataPoint[] = useMemo(() => {
     // Group by date
-    const grouped = sorted.reduce((acc, curr) => {
-      const dateObj = new Date(curr.date);
-      // Format date as DD/MM
-      const dateStr = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-      
-      if (!acc[dateStr]) {
-        acc[dateStr] = { date: dateStr, income: 0, expense: 0 };
+    const grouped = filteredTransactions.reduce((acc: Record<string, ChartDataPoint>, curr: Transaction) => {
+      const date = curr.date; // already YYYY-MM-DD
+      if (!acc[date]) {
+        acc[date] = { date, income: 0, expense: 0 };
       }
       if (curr.type === 'income') {
-        acc[dateStr].income += curr.amount;
+        acc[date].income += curr.amount;
       } else {
-        acc[dateStr].expense += curr.amount;
+        acc[date].expense += curr.amount;
       }
       return acc;
     }, {} as Record<string, ChartDataPoint>);
 
-    return Object.values(grouped);
+    // Convert to array and sort by date
+    return (Object.values(grouped) as ChartDataPoint[])
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-10); // Show last 10 days with activity in the selected period
   }, [filteredTransactions]);
 
-  // -- Handlers --
+  // -- Render Logic --
 
-  const addTransaction = (newTx: Omit<Transaction, 'id'>) => {
-    // Basic ID generation that works in all environments
-    const transaction: Transaction = {
-      ...newTx,
-      id: Date.now().toString(36) + Math.random().toString(36).substr(2),
-    };
-    setTransactions(prev => [transaction, ...prev]);
-  };
-
-  const deleteTransaction = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
-  };
-
-  // -- Render --
-
+  // 1. SE NÃO ESTIVER LOGADO, MOSTRA LOGIN
   if (!currentUser) {
-    return null; // Should not happen with DEFAULT_USER
+    return <Login onLogin={handleLogin} />;
   }
 
-  // Verificar se estou visualizando dados de outra pessoa
-  const isSharedView = dataOwnerEmail !== currentUser.email;
-
+  // 2. SE LOGADO, MOSTRA DASHBOARD
   return (
-    <div className="min-h-screen bg-slate-100 pb-20 font-sans relative">
-      {/* Header com a nova cor Azul Elétrico */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-[#0070F0] p-2.5 rounded-xl text-white shadow-lg shadow-blue-200">
-              <Wallet size={26} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800 tracking-tight leading-none">FinanSmart</h1>
-              <div className="flex items-center gap-1">
-                <span className="text-xs font-semibold text-[#0070F0] bg-blue-50 px-2 py-0.5 rounded-full">Personal Finance</span>
-                {isSharedView && (
-                   <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-100">
-                     <Users size={10} /> Conta Família ({dataOwnerEmail})
-                   </span>
-                )}
+    <div className="min-h-screen bg-slate-50 pb-12">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-3">
+              <div className="bg-[#0070F0] p-2 rounded-xl shadow-lg shadow-blue-200/50">
+                <Wallet className="text-white" size={24} />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-800 tracking-tight">FinanSmart</h1>
+                <p className="text-xs text-[#0070F0] font-medium bg-blue-50 px-2 py-0.5 rounded-full inline-block">Personal Finance</p>
               </div>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-             <div className="hidden md:flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-               <UserIcon size={16} className="text-[#0070F0]" />
-               <span className="truncate max-w-[100px]">{currentUser.name}</span>
-             </div>
-             
-             <div className="h-6 w-px bg-slate-200 hidden md:block"></div>
-             
-             <button
-                onClick={() => setIsSharingModalOpen(true)}
-                className="hidden md:flex items-center gap-2 text-slate-500 hover:text-[#0070F0] transition-colors text-sm font-medium bg-slate-50 hover:bg-blue-50 px-3 py-2 rounded-lg border border-transparent hover:border-blue-100"
-                title="Compartilhar Conta"
-             >
-                <Share2 size={18} />
-                <span className="hidden lg:inline">Compartilhar</span>
-             </button>
+            
+            <div className="flex items-center gap-3">
+              {/* Family Mode Indicator */}
+              {dataOwnerEmail !== currentUser.email && (
+                 <div className="hidden md:flex items-center gap-2 bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full text-xs font-semibold border border-purple-100">
+                    <Users size={14} />
+                    Conta de: {dataOwnerEmail}
+                 </div>
+              )}
 
-             <button 
-               onClick={handleResetData}
-               className="flex items-center gap-2 text-slate-500 hover:text-rose-600 transition-colors text-sm font-medium bg-slate-50 hover:bg-rose-50 px-3 py-2 rounded-lg"
-               title="Resetar Dados de Exemplo"
-             >
-               <RefreshCw size={18} />
-             </button>
+              <button 
+                onClick={() => setIsSharingModalOpen(true)}
+                className="p-2 text-slate-500 hover:text-[#0070F0] hover:bg-blue-50 rounded-lg transition-colors"
+                title="Compartilhar Conta"
+              >
+                <Share2 size={20} />
+                <span className="sr-only">Compartilhar</span>
+              </button>
+
+              <div className="h-6 w-px bg-slate-200 mx-1"></div>
+
+              <div className="flex items-center gap-3 bg-slate-50 pl-3 pr-1 py-1 rounded-full border border-slate-100">
+                 <div className="flex flex-col items-end mr-1">
+                   <span className="text-xs font-bold text-slate-700 leading-tight">{currentUser.name}</span>
+                   <span className="text-[10px] text-slate-400 leading-tight">{currentUser.email}</span>
+                 </div>
+                 <button 
+                   onClick={handleLogout}
+                   className="p-1.5 bg-white text-rose-500 hover:bg-rose-50 rounded-full shadow-sm border border-slate-100 transition-colors"
+                   title="Sair"
+                 >
+                   <LogOut size={14} />
+                 </button>
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Shared View Warning Banner */}
-      {isSharedView && (
-        <div className="bg-amber-50 border-b border-amber-100 px-4 py-2">
-          <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 text-sm text-amber-800">
-            <Info size={16} />
-            <span>
-              Você está visualizando e editando os dados financeiros de <strong>{dataOwnerEmail}</strong>.
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* Mobile Actions Bar */}
-        <div className="md:hidden flex justify-end mb-4">
-             <button
-                onClick={() => setIsSharingModalOpen(true)}
-                className="flex items-center gap-2 text-[#0070F0] bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-100 font-medium text-sm w-full justify-center"
-             >
-                <Share2 size={18} />
-                Gerenciar Família
-             </button>
-        </div>
-
         {/* Filter Bar */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-slate-700 font-semibold">
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-8 flex flex-col md:flex-row items-center gap-4 justify-between">
+          <div className="flex items-center gap-2 text-slate-600 font-medium">
             <Filter size={20} className="text-[#0070F0]" />
             <span>Filtrar Período:</span>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2">
-            {[
-              { id: 'current_month', label: 'Mês Atual' },
-              { id: 'last_30_days', label: 'Últimos 30 Dias' },
-              { id: 'current_year', label: 'Ano Atual' },
-              { id: 'custom', label: 'Personalizado' },
-            ].map((filter) => (
-              <button
-                key={filter.id}
-                onClick={() => setFilterType(filter.id as DateFilterType)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  filterType === filter.id 
-                    ? 'bg-[#0070F0] text-white shadow-md shadow-blue-200' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <button 
+              onClick={() => setFilterType('current_month')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterType === 'current_month' ? 'bg-[#0070F0] text-white shadow-md shadow-blue-200' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+            >
+              Mês Atual
+            </button>
+            <button 
+              onClick={() => setFilterType('last_30_days')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterType === 'last_30_days' ? 'bg-[#0070F0] text-white shadow-md shadow-blue-200' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+            >
+              Últimos 30 Dias
+            </button>
+            <button 
+              onClick={() => setFilterType('current_year')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterType === 'current_year' ? 'bg-[#0070F0] text-white shadow-md shadow-blue-200' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+            >
+              Ano Atual
+            </button>
+            <button 
+              onClick={() => setFilterType('custom')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterType === 'custom' ? 'bg-[#0070F0] text-white shadow-md shadow-blue-200' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+            >
+              Personalizado
+            </button>
           </div>
 
           {filterType === 'custom' && (
-            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
-              <Calendar size={16} className="text-slate-400" />
+            <div className="flex items-center gap-2 animate-fade-in">
               <input 
                 type="date" 
-                value={customStartDate} 
+                value={customStartDate}
                 onChange={(e) => setCustomStartDate(e.target.value)}
-                className="bg-transparent text-sm text-slate-600 focus:outline-none"
+                className="p-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0070F0]/50 outline-none"
               />
               <span className="text-slate-400">-</span>
               <input 
                 type="date" 
-                value={customEndDate} 
+                value={customEndDate}
                 onChange={(e) => setCustomEndDate(e.target.value)}
-                className="bg-transparent text-sm text-slate-600 focus:outline-none"
+                className="p-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0070F0]/50 outline-none"
               />
             </div>
           )}
         </div>
 
-        {/* Gemini Advisor Section */}
+        {/* AI Advisor */}
         <GeminiAdvisor transactions={filteredTransactions} />
 
-        {/* Dashboard Summary */}
-        <section className="animate-fade-in-up">
-           <SummaryCards summary={summary} />
-        </section>
+        {/* Summary Cards */}
+        <SummaryCards summary={summary} />
 
-        {/* Charts Section */}
-        <section className="animate-fade-in-up delay-100">
-          <Charts timeData={timeData} categoryData={categoryData} />
-        </section>
+        {/* Charts */}
+        <Charts timeData={chartData} categoryData={categoryData} />
 
-        {/* Add Transaction Form */}
-        <div className="animate-fade-in-up delay-200">
-           <TransactionForm onAddTransaction={addTransaction} />
+        {/* Transaction Area - Full Width Vertical Stack */}
+        <div className="flex flex-col gap-6">
+          <TransactionForm onAddTransaction={handleAddTransaction} />
+          <TransactionList transactions={filteredTransactions} onDeleteTransaction={handleDeleteTransaction} />
         </div>
 
-        {/* Transactions List */}
-        <div className="animate-fade-in-up delay-300">
-          <TransactionList 
-            transactions={filteredTransactions} 
-            onDeleteTransaction={deleteTransaction} 
-          />
+        {/* Footer info */}
+        <div className="mt-12 text-center text-slate-400 text-sm flex items-center justify-center gap-4">
+           <p>© 2025 FinanSmart AI</p>
+           <button onClick={handleResetData} className="flex items-center gap-1 hover:text-rose-500 transition-colors">
+              <RefreshCw size={12} /> Resetar Dados
+           </button>
         </div>
 
       </main>
 
       {/* Modals */}
-      {isSharingModalOpen && currentUser && (
+      {isSharingModalOpen && (
         <SharingModal 
           currentUser={currentUser} 
           onClose={() => setIsSharingModalOpen(false)} 

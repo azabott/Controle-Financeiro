@@ -10,6 +10,17 @@ import { Login } from './components/Login';
 import { SharingModal } from './components/SharingModal';
 import { Wallet, Calendar, Filter, LogOut, User as UserIcon, Users, Share2, Info } from 'lucide-react';
 
+// Helper seguro para parsing JSON
+const safeJSONParse = (key: string, fallback: any) => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : fallback;
+  } catch (e) {
+    console.error(`Erro ao ler ${key} do localStorage`, e);
+    return fallback;
+  }
+};
+
 const App: React.FC = () => {
   // Auth State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -33,16 +44,16 @@ const App: React.FC = () => {
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     
-    // Lógica de Compartilhamento
-    const permissions = JSON.parse(localStorage.getItem('finansmart_permissions') || '{}');
+    // Lógica de Compartilhamento Segura
+    const permissions = safeJSONParse('finansmart_permissions', {});
     const ownerEmail = permissions[user.email] || user.email; 
     
     setDataOwnerEmail(ownerEmail);
 
-    const storedData = localStorage.getItem(`finansmart_data_${ownerEmail}`);
+    const storedData = safeJSONParse(`finansmart_data_${ownerEmail}`, null);
     
     if (storedData) {
-      setTransactions(JSON.parse(storedData));
+      setTransactions(storedData);
     } else {
       if (ownerEmail === user.email) {
         setTransactions(INITIAL_TRANSACTIONS);
